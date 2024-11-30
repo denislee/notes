@@ -64,7 +64,7 @@ static domain_name_servers=8.8.8.8
 
 If you want the Raspberry Pi to access the internet through the host, enable IP forwarding and set up NAT:
 
-    On the host:
+On the host:
 
 ```
 sudo iptables -t nat -A POSTROUTING -o <your_host_interface> -j MASQUERADE
@@ -73,9 +73,53 @@ echo 1 | sudo tee /proc/sys/net/ipv4/ip_forward
 
 Replace <your_host_interface> with your host's primary internet interface (e.g., wlan0 or eth0).
 
+# bridge
+
+shell script
+
+```
+#!/bin/bash
+
+export DEVICE=$(ip a | sed -n '/enx[0-9a-f]\{12\}/ {s/.*\(enx[0-9a-f]\{12\}\).*/\1/; p; q}')
+
+echo $DEVICE
+
+sudo nmcli dev set $DEVICE managed no
+sudo ip addr add 192.168.2.1/24 dev $DEVICE
+sudo ip link set $DEVICE down
+sudo ip link set $DEVICE up
+
+sudo iptables -t nat -A POSTROUTING -o wlan0 -j MASQUERADE
+sudo iptables -A FORWARD -i $DEVICE -o wlan0 -j ACCEPT
+sudo iptables -A FORWARD -i wlan0 -o $DEVICE -m state --state RELATED,ESTABLISHED -j ACCEPT
+
+# for rtsp
+sudo iptables -t nat -A PREROUTING -p tcp --dport 8555 -j DNAT --to-destination 192.168.2.2:8555
+sudo iptables -t nat -A POSTROUTING -p tcp --dport 8555 -j MASQUERADE
+sudo iptables -t nat -A PREROUTING -p tcp --dport 8554 -j DNAT --to-destination 192.168.2.2:8554
+sudo iptables -t nat -A POSTROUTING -p tcp --dport 8554 -j MASQUERADE
+
+sudo iptables -t nat -A PREROUTING -p udp --dport 1024:65535 -j DNAT --to-destination 192.168.2.2
+sudo iptables -t nat -A POSTROUTING -p udp --dport 1024:65535 -j MASQUERADE
+
+
+# check if is ready
+ping 192.168.2.2
+```
+
+# enable camera
+
+```
+sudo raspi-config
+```
+
+Interface Options > Legacy Camera > Enable
+
+Reboot.
+
 # v4l2rtspserver
 
-1. Install Dependencies
+## install dependencies
 
 You need to install the required dependencies for v4l2rtspserver. First, make sure your Raspberry Pi system is up-to-date:
 
@@ -85,9 +129,11 @@ sudo apt update -y && sudo apt upgrade -y && sudo apt dist-upgrade
 
 Then, install the necessary packages:
 
-sudo apt install build-essential cmake git libv4l-dev
+```
+sudo apt install build-essential cmake git libv4l-dev vim
+```
 
-2. Install v4l2rtspserver
+## Install v4l2rtspserver
 
 To install v4l2rtspserver, you'll need to compile it from source. Follow these steps:
 
@@ -106,14 +152,14 @@ cd v4l2rtspserver
 Compile the server:
 
 ```
-cmake .
-make
+cmake . ; \
+make ; \
 sudo make install
 ```
 
 # make it a service
 
-## Set Up Autostart
+## set up autostart
 
 Create a systemd service:
 
