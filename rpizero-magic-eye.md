@@ -119,6 +119,8 @@ Reboot.
 
 # v4l2rtspserver
 
+link: https://github.com/smford/raspberry-pi-streaming-camera
+
 ## install dependencies
 
 You need to install the required dependencies for v4l2rtspserver. First, make sure your Raspberry Pi system is up-to-date:
