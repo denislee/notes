@@ -80,7 +80,11 @@ shell script
 ```
 #!/bin/bash
 
-export DEVICE=$(ip a | sed -n '/enx[0-9a-f]\{12\}/ {s/.*\(enx[0-9a-f]\{12\}\).*/\1/; p; q}')
+if [ "$1" ]; then
+  export DEVICE=$1
+else
+  export DEVICE=$(ip a | sed -n '/enx[0-9a-f]\{12\}/ {s/.*\(enx[0-9a-f]\{12\}\).*/\1/; p; q}')
+fi
 
 echo $DEVICE
 
@@ -182,9 +186,11 @@ Restart=always
 
 [Install]
 WantedBy=multi-user.target
+```
 
 Enable and Start the Service:
 
+```
 sudo systemctl enable v4l2rtspserver
 sudo systemctl start v4l2rtspserver
 ```
