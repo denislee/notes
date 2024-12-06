@@ -80,13 +80,18 @@ shell script
 ```
 #!/bin/bash
 
+
 if [ "$1" ]; then
   export DEVICE=$1
 else
   export DEVICE=$(ip a | sed -n '/enx[0-9a-f]\{12\}/ {s/.*\(enx[0-9a-f]\{12\}\).*/\1/; p; q}')
 fi
 
-echo $DEVICE
+if [ -z "${DEVICE}" ]; then
+  export DEVICE=$(ip a | grep -oP '^\d+: (\Kusb\d+)')
+fi
+
+echo "device: $DEVICE"
 
 sudo nmcli dev set $DEVICE managed no
 sudo ip addr add 192.168.2.1/24 dev $DEVICE
@@ -97,7 +102,6 @@ sudo iptables -t nat -A POSTROUTING -o wlan0 -j MASQUERADE
 sudo iptables -A FORWARD -i $DEVICE -o wlan0 -j ACCEPT
 sudo iptables -A FORWARD -i wlan0 -o $DEVICE -m state --state RELATED,ESTABLISHED -j ACCEPT
 
-# for rtsp
 sudo iptables -t nat -A PREROUTING -p tcp --dport 8555 -j DNAT --to-destination 192.168.2.2:8555
 sudo iptables -t nat -A POSTROUTING -p tcp --dport 8555 -j MASQUERADE
 sudo iptables -t nat -A PREROUTING -p tcp --dport 8554 -j DNAT --to-destination 192.168.2.2:8554
@@ -106,8 +110,6 @@ sudo iptables -t nat -A POSTROUTING -p tcp --dport 8554 -j MASQUERADE
 sudo iptables -t nat -A PREROUTING -p udp --dport 1024:65535 -j DNAT --to-destination 192.168.2.2
 sudo iptables -t nat -A POSTROUTING -p udp --dport 1024:65535 -j MASQUERADE
 
-
-# check if is ready
 ping 192.168.2.2
 ```
 
@@ -199,4 +201,28 @@ sudo systemctl start v4l2rtspserver
 
 ```
 vcgencmd get_camera
+```
+
+# autorun script on connection then config
+
+get vendor and product
+
+```
+$ lsusb
+Bus 005 Device 040: ID 0525:a4a2 Netchip Technology, Inc. Linux-USB Ethernet/RNDIS Gadget
+```
+
+vendor is `0525`
+product is `a4a2`
+
+create udev autorun file
+
+```
+sudo vi /etc/udev/rules.d/99-usb-rpizerocam-auto-run.rules
+```
+
+add this to your file
+
+```
+ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="0525", ATTR{idProduct}=="a4a2", RUN+="/home/cpi/cam.sh"
 ```
